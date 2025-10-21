@@ -1,5 +1,15 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { OpenAI } from 'openai';
+
+type VercelRequest = {
+  method?: string;
+  headers: Record<string, string | string[] | undefined>;
+  body?: unknown;
+};
+
+type VercelResponse = {
+  status: (code: number) => VercelResponse;
+  json: (body: unknown) => void;
+};
 
 function textToSrt(text: string) {
   const lines = text.split(/\r?\n/).filter(Boolean);
