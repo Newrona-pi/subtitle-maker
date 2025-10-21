@@ -1,0 +1,39 @@
+openapi: 3.1.0
+info:
+  title: Subtitle API
+  version: "1.0.0"
+  description: Minimal API that generates SRT (soft subtitles) from a local video file for GPTs Custom Actions.
+servers:
+  - url: http://localhost:8787
+paths:
+  /jobs:
+    post:
+      operationId: createJob
+      summary: Create an SRT subtitle from a local video file.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_path]
+              properties:
+                file_path:
+                  type: string
+                  description: Local file path to the video file
+                  example: "C:\\videos\\sample.mp4"
+                lang:
+                  type: string
+                  description: Language code or 'auto' for auto-detect.
+                  example: auto
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  srt_url: { type: string, format: uri }
+                  text_preview: { type: string }
