@@ -2,30 +2,35 @@ openapi: 3.1.0
 info:
   title: Subtitle API
   version: "1.0.0"
-  description: Minimal API that generates SRT (soft subtitles) from a local video file for GPTs Custom Actions.
+  description: API that generates SRT/VTT/Text from an uploaded file URL for GPTs Custom Actions.
 servers:
-  - url: http://localhost:8787
+  - url: https://subtitle-maker.vercel.app
 paths:
-  /jobs:
+  /api/transcribe:
     post:
-      operationId: createJob
-      summary: Create an SRT subtitle from a local video file.
+      operationId: transcribeVideo
+      summary: Transcribe a video/audio file from a temporary URL and return subtitles
+      security:
+        - ApiKeyAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [file_path]
+              required: [file_url]
               properties:
-                file_path:
+                file_url:
                   type: string
-                  description: Local file path to the video file
-                  example: "C:\\videos\\sample.mp4"
-                lang:
+                  format: uri
+                  description: Signed URL to the uploaded media file
+                output_format:
                   type: string
-                  description: Language code or 'auto' for auto-detect.
-                  example: auto
+                  enum: [srt, vtt, text]
+                  default: srt
+                language:
+                  type: string
+                  description: BCP-47 language code (e.g. "ja")
       responses:
         "200":
           description: OK
@@ -34,6 +39,18 @@ paths:
               schema:
                 type: object
                 properties:
-                  id: { type: string }
-                  srt_url: { type: string, format: uri }
+                  format: { type: string, enum: [srt, vtt, text] }
                   text_preview: { type: string }
+                  srt: { type: string }
+                  vtt: { type: string }
+                  text: { type: string }
+        "401": { description: Unauthorized }
+        "422": { description: Bad Request }
+        "500": { description: Internal Server Error }
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas: {}

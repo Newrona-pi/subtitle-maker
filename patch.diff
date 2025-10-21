@@ -1,0 +1,202 @@
+🔧 Codex 用プロンプト（コピペでOK）
+
+Goal:
+既存の subtitle-api リポを Vercel Serverless で動くAPIにリライト。/api/transcribe の1本化、OpenAI gpt-4o-transcribe に直渡し、SRT/VTT/TextをJSONで返す。ffmpeg/常駐サーバは撤去。GPTs Actions から叩けるよう OpenAPI も同梱。
+
+Hard requirements:
+
+api/transcribe.ts を新設（Express不要・export default handler）。
+
+SUBTITLE_API_KEY（ヘッダ X-API-Key）で認証。
+
+入力: file_url(必須), output_format(srt|vtt|text=既定 srt), language(任意)
+
+出力: JSON に srt or vtt or text を直接格納（URL保存はしない）。
+
+ffmpeg を使わない。
+
+vercel.json で Node 20 / duration / memory を指定。
+
+package.json の依存は openai のみで十分（TypeScript はVercelが自動で処理）。
+
+OpenAPI（GPTs用）は /api/transcribe & file_url 仕様。
+
+既存の src/index.ts や ffmpeg 関連はデプロイには使わない（残ってもOKだが以後未使用）。
+
+Do: 以下のファイルを作成/上書きしてコミット。差分は不要。中身は完全にこの通りで作って。
+
+api/transcribe.ts
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { OpenAI } from 'openai';
+
+function textToSrt(text: string) {
+  const lines = text.split(/\r?\n/).filter(Boolean);
+  return lines.map((line, i) => {
+    const start = `00:00:${String(i).padStart(2,'0')},000`;
+    const end   = `00:00:${String(i+1).padStart(2,'0')},000`;
+    return `${i+1}\n${start} --> ${end}\n${line}\n`;
+  }).join('\n');
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+
+  // Auth
+  const expected = process.env.SUBTITLE_API_KEY;
+  if (!expected) return res.status(500).json({ error: 'Server not configured' });
+  if ((req.headers['x-api-key'] as string) !== expected) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const { file_url, output_format = 'srt', language } = (req.body ?? {}) as {
+      file_url?: string; output_format?: 'srt'|'vtt'|'text'; language?: string;
+    };
+    if (!file_url) return res.status(422).json({ error: 'file_url is required' });
+
+    // fetch file bytes
+    const r = await fetch(file_url);
+    if (!r.ok) throw new Error(`fetch file_url failed: ${r.status}`);
+    const buf = Buffer.from(await r.arrayBuffer());
+
+    // OpenAI transcribe (no ffmpeg)
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const tx = await client.audio.transcriptions.create({
+      model: 'gpt-4o-transcribe',
+      file: new File([buf], 'input.mp4', { type: 'audio/mp4' }),
+      // language, // enable when the API supports explicit hint reliably
+      response_format: 'verbose_json'
+    });
+
+    const text = tx.text || '';
+    const preview = text.slice(0, 2000);
+
+    if (output_format === 'text') {
+      return res.status(200).json({ format: 'text', text, text_preview: preview });
+    }
+    if (output_format === 'vtt') {
+      const vtt = 'WEBVTT\n\n' + textToSrt(text).replace(/,000/g, '.000');
+      return res.status(200).json({ format: 'vtt', vtt, text_preview: preview });
+    }
+    const srt = textToSrt(text);
+    return res.status(200).json({ format: 'srt', srt, text_preview: preview });
+  } catch (e: any) {
+    console.error(e);
+    return res.status(500).json({ error: String(e?.message || e) });
+  }
+}
+
+vercel.json
+{
+  "functions": {
+    "api/**": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  }
+}
+
+package.json
+{
+  "name": "subtitle-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "openai": "^4.58.0"
+  }
+}
+
+openapi.yaml
+openapi: 3.1.0
+info:
+  title: Subtitle API
+  version: "1.0.0"
+  description: API that generates SRT/VTT/Text from an uploaded file URL for GPTs Custom Actions.
+servers:
+  - url: https://<your-vercel-project>.vercel.app
+paths:
+  /api/transcribe:
+    post:
+      operationId: transcribeVideo
+      summary: Transcribe a video/audio file from a temporary URL and return subtitles
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_url]
+              properties:
+                file_url:
+                  type: string
+                  format: uri
+                  description: Signed URL to the uploaded media file
+                output_format:
+                  type: string
+                  enum: [srt, vtt, text]
+                  default: srt
+                language:
+                  type: string
+                  description: BCP-47 language code (e.g. "ja")
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  format: { type: string, enum: [srt, vtt, text] }
+                  text_preview: { type: string }
+                  srt: { type: string }
+                  vtt: { type: string }
+                  text: { type: string }
+        "401": { description: Unauthorized }
+        "422": { description: Bad Request }
+        "500": { description: Internal Server Error }
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas: {}
+
+.gitignore
+node_modules
+.vercel
+.env
+.DS_Store
+
+README.md（抜粋・最小）
+# subtitle-api (Vercel Serverless)
+
+## Env
+- OPENAI_API_KEY: your OpenAI key
+- SUBTITLE_API_KEY: any long random secret (must match GPTs Action header `X-API-Key`)
+
+## Deploy
+- Vercel Project: Framework=Other / Build/Output/Install: empty
+- `vercel.json` sets Node20 etc.
+
+## Test
+curl -X POST "https://<your>.vercel.app/api/transcribe" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <SUBTITLE_API_KEY>" \
+  -d '{"file_url":"https://example.com/sample.mp4","output_format":"srt"}'
+
+
+Don’t:
+
+常駐サーバ（app.listen）を置かない
+
+ffmpeg / /artifacts 保存 / 永続FS を前提にしない
+
+Notes:
+
+GPTs 側の Actions 認証: 「APIキー → カスタム」/ ヘッダー名 X-API-Key / 値は SUBTITLE_API_KEY と同一。
+
+長尺対応が必要なら、あとで非同期ジョブ化（POST /transcribe=job_id、GET /jobs/{id}）を追加する。

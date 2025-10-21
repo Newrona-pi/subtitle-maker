@@ -1,20 +1,22 @@
 import OpenAI from "openai";
-import fs from "node:fs";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export type Seg = { start: number; end: number; text: string };
 export type TranscriptResult = { text?: string; segments: Seg[] };
 
-export async function transcribeWav(wavPath: string, lang?: string): Promise<TranscriptResult> {
-  const model = process.env.TRANSCRIBE_MODEL || "gpt-4o-transcribe";
+export async function transcribeWav(audioBuffer: Buffer, lang?: string): Promise<TranscriptResult> {
+  const model = process.env.TRANSCRIBE_MODEL || "whisper-1";
+
+  // Create a File-like object from Buffer
+  const audioFile = new File([audioBuffer], 'audio.wav', { type: 'audio/wav' });
 
   // Try verbose_json first (segments included). Fall back to plain text if not supported.
   try {
     const res: any = await client.audio.transcriptions.create({
-      file: fs.createReadStream(wavPath) as any,
+      file: audioFile,
       model,
-      // language: lang && lang !== "auto" ? lang : undefined,  // enable if supported in your model/SDK
+      language: lang && lang !== "auto" ? lang : undefined,
       response_format: "verbose_json"
     });
 
@@ -33,8 +35,9 @@ export async function transcribeWav(wavPath: string, lang?: string): Promise<Tra
 
   // Fallback: request plain text
   const plain: any = await client.audio.transcriptions.create({
-    file: fs.createReadStream(wavPath) as any,
-    model
+    file: audioFile,
+    model,
+    language: lang && lang !== "auto" ? lang : undefined
   });
   const text: string | undefined = plain?.text ? String(plain.text) : String(plain);
   return { text, segments: [] };
