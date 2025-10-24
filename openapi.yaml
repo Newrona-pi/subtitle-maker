@@ -26,6 +26,7 @@ paths:
                   description: Externally accessible (signed) URL to the uploaded media file.
                 file_id:
                   type: string
+                  format: binary
                   description: OpenAI Files API identifier (e.g. file-abc123) for media uploaded via GPTs.
                   x-oaiMeta:
                     type: file_reference
