@@ -35,28 +35,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!apiKey || apiKey !== expected) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
-    // body が string の場合に備える
-    const body =
-      typeof req.body === 'string' ? JSON.parse(req.body) : (req.body ?? {});
+    // bodyが string の場合に備えてパース
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body ?? {});
     const {
       file_url,
+      file_id,
       output_format = 'srt',
       language,
-    }: { file_url?: string; output_format?: 'srt' | 'vtt' | 'text'; language?: string } = body;
+    }: {
+      file_url?: string;
+      file_id?: string;
+      output_format?: 'srt' | 'vtt' | 'text';
+      language?: string;
+    } = body;
 
-    if (!file_url) return res.status(422).json({ error: 'file_url is required' });
+    if (!file_url && !file_id) {
+      return res.status(422).json({ error: 'file_url or file_id is required' });
+    }
+
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     // ---- Fetch file bytes ----------------------------------------
-    const r = await fetch(file_url);
-    if (!r.ok) throw new Error(`fetch file_url failed: ${r.status}`);
-    const buf = Buffer.from(await r.arrayBuffer());
+    let buf: Buffer;
+
+    if (file_url) {
+      const r = await fetch(file_url);
+      if (!r.ok) throw new Error(`fetch file_url failed: ${r.status}`);
+      buf = Buffer.from(await r.arrayBuffer());
+    } else {
+      const response = await client.files.content(file_id!);
+      const arrayBuffer = await response.arrayBuffer();
+      buf = Buffer.from(arrayBuffer);
+    }
 
     // ---- OpenAI Transcribe (File 未定義対策に toFile を使用) ------
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const tx = await client.audio.transcriptions.create({
       model: 'gpt-4o-transcribe',
       file: await toFile(buf, 'input.mp4', { type: 'audio/mp4' }),
-      // language, // 必要なら有効化（APIの仕様に合わせて）
+      // language, // 必要なら有効化！APIの仕様に合わせて調整
       response_format: 'verbose_json',
     });
 
