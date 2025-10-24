@@ -18,12 +18,15 @@ paths:
           application/json:
             schema:
               type: object
-              required: [file_url]
+              description: Specify either file_url or file_id to locate the media.
               properties:
                 file_url:
                   type: string
                   format: uri
-                  description: Signed URL to the uploaded media file
+                  description: Externally accessible (signed) URL to the uploaded media file.
+                file_id:
+                  type: string
+                  description: OpenAI Files API identifier (e.g. file-abc123) for media uploaded via GPTs.
                 output_format:
                   type: string
                   enum: [srt, vtt, text]
@@ -31,6 +34,9 @@ paths:
                 language:
                   type: string
                   description: BCP-47 language code (e.g. "ja")
+              anyOf:
+                - required: [file_url]
+                - required: [file_id]
       responses:
         "200":
           description: OK
