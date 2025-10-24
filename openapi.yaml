@@ -27,6 +27,10 @@ paths:
                 file_id:
                   type: string
                   description: OpenAI Files API identifier (e.g. file-abc123) for media uploaded via GPTs.
+                  x-oaiMeta:
+                    type: file_reference
+                    purpose:
+                      - assistants
                 output_format:
                   type: string
                   enum: [srt, vtt, text]
