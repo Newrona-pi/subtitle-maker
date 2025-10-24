@@ -9,7 +9,7 @@ export async function transcribeWav(audioBuffer: Buffer, lang?: string): Promise
   const model = process.env.TRANSCRIBE_MODEL || "whisper-1";
 
   // Create a File-like object from Buffer
-  const audioFile = new File([audioBuffer], 'audio.wav', { type: 'audio/wav' });
+  const audioFile = new File([audioBuffer.buffer as ArrayBuffer], 'audio.wav', { type: 'audio/wav' });
 
   // Try verbose_json first (segments included). Fall back to plain text if not supported.
   try {
