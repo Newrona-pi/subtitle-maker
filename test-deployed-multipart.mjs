@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import FormData from 'form-data';
 
 // デプロイされたAPIのURL
-const API_URL = 'ssstik.io_@zizikqindv0_1761540170273.mp4';
+const API_URL = 'https://subtitle-maker.vercel.app/api/transcribe';
 const API_KEY = 'Xx7xVx1x_Mg8s4xV7q2G9nG4xNf0K1rQ-w3yZ8tJ2pL6mB4aC9rU2eD5qH7vW0y';
 
 async function testDeployedMultipart() {
@@ -10,7 +10,7 @@ async function testDeployedMultipart() {
     console.log('デプロイ環境でmultipart/form-data方式をテスト中...');
     
     // 動画ファイルを読み込み
-    const videoBuffer = readFileSync('ssstik.io_@jyuno_o_1761268362528.mp4');
+    const videoBuffer = readFileSync('ssstik.io_@zizikqindv0_1761540170273.mp4');
     
     // FormDataを作成（multipart/form-data）
     const formData = new FormData();
