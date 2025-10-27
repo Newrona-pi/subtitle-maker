@@ -73,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       model: 'gpt-4o-transcribe',
       file: await toFile(buf, 'input.mp4', { type: 'audio/mp4' }),
       // language, // 必要なら有効化！APIの仕様に合わせて調整
-      response_format: 'verbose_json',
+      response_format: 'json',
     });
 
     const text = tx.text || '';
