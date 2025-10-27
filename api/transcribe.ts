@@ -46,7 +46,8 @@ async function parseMultipart(req: VercelRequest) {
         fileSize: 50 * 1024 * 1024, // 50MB limit
         files: 1,
         fields: 10
-      }
+      },
+      preservePath: false
     });
     const fields: Record<string, string> = {};
     const fileChunks: Buffer[] = [];
