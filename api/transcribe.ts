@@ -40,7 +40,14 @@ async function parseMultipart(req: VercelRequest) {
     mimeType?: string;
     fields: Record<string, string>;
   }>((resolve, reject) => {
-    const busboy = Busboy({ headers: req.headers });
+    const busboy = Busboy({ 
+      headers: req.headers,
+      limits: {
+        fileSize: 50 * 1024 * 1024, // 50MB limit
+        files: 1,
+        fields: 10
+      }
+    });
     const fields: Record<string, string> = {};
     const fileChunks: Buffer[] = [];
     let filename: string | undefined;
