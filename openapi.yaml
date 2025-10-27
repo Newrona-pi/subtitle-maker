@@ -15,6 +15,30 @@ paths:
       requestBody:
         required: true
         content:
+          multipart/form-data:
+            schema:
+              type: object
+              description: Upload the media file directly. Recommended for GPT Actions.
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Media file to transcribe. Provided by GPT when the user attaches a file.
+                output_format:
+                  type: string
+                  enum: [srt, vtt, text]
+                  default: srt
+                language:
+                  type: string
+                  description: BCP-47 language code (e.g. "ja")
+                file_url:
+                  type: string
+                  format: uri
+                  description: Optional fallback URL if you prefer remote download.
+                file_id:
+                  type: string
+                  description: Optional OpenAI file identifier for legacy flows.
+              required: [file]
           application/json:
             schema:
               type: object
